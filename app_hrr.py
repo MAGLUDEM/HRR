@@ -10,8 +10,12 @@ st.set_page_config(page_title="Registro HRR", layout="centered")
 
 # 🧠 Clasificación
 def clasificar_discromatopsia(respuestas):
-    rojo_verde = sum([r == '✗' for r in respuestas[4:10]])
-    azul_amarillo = sum([r == '✗' for r in respuestas[10:13]])
+    rojo_verde = sum([r == '✗' for r in respuestas[4:10]])  # Láminas 5–10
+    azul_amarillo = 0
+    for i in range(10, len(respuestas), 2):  # Láminas 11–24 (Normal + Defecto)
+        if respuestas[i] == '✗' or respuestas[i+1] == '✗':
+            azul_amarillo += 1
+
     total_errores = rojo_verde + azul_amarillo
 
     if rojo_verde >= 3:
@@ -40,7 +44,11 @@ def guardar_excel(fila):
     if not os.path.exists(archivo):
         wb = Workbook()
         ws = wb.active
-        encabezado = ["ID", "Edad"] + [f"Lámina {i+1}" for i in range(24)] + ["Tipo", "Severidad"]
+        encabezado = ["ID", "Edad"] + \
+                     [f"Lámina {i+1}" for i in range(10)] + \
+                     [f"Lámina {i+1} (Normal)" for i in range(10, 24)] + \
+                     [f"Lámina {i+1} (Defecto)" for i in range(10, 24)] + \
+                     ["Tipo", "Severidad"]
         ws.append(encabezado)
     else:
         wb = load_workbook(archivo)
@@ -81,10 +89,21 @@ with st.form("registro_form"):
     edad = st.number_input("Edad", min_value=0, max_value=120, step=1)
     respuestas = []
     cols = st.columns(6)
-    for i in range(24):
+
+    # Láminas 1–10: una sola respuesta
+    for i in range(10):
         with cols[i % 6]:
             r = st.selectbox(f"Lámina {i+1}", ["✓", "✗"], key=f"lamina_{i}")
             respuestas.append(r)
+
+    # Láminas 11–24: dos respuestas por lámina
+    for i in range(10, 24):
+        with cols[i % 6]:
+            r1 = st.selectbox(f"Lámina {i+1} (Normal)", ["✓", "✗"], key=f"lamina_{i}_n")
+            r2 = st.selectbox(f"Lámina {i+1} (Defecto)", ["✓", "✗"], key=f"lamina_{i}_d")
+            respuestas.append(r1)
+            respuestas.append(r2)
+
     submitted = st.form_submit_button("Guardar resultado")
 
     if submitted:
@@ -143,3 +162,4 @@ if not df.empty:
     st.download_button("📥 Descargar Excel", data=df_filtrado.to_excel(index=False), file_name="resultados_HRR.xlsx")
 else:
     st.info("No hay datos registrados aún.")
+
